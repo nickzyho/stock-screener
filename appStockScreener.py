@@ -14,7 +14,7 @@ tickers = [t.strip().upper() for t in raw.split(",") if t.strip()]
 
 with st.expander("Criteria", expanded=True):
     ideal_pe = st.slider("Ideal P/E Lesser Than", 5, 40, 25)
-    ideal_ps = st.slider("Ideal P/S Lesser Than", 0, 5, 2.2, 0.1)
+    ideal_ps = st.slider("Ideal P/S Lesser Than", 0.0, 5.0, 2.2, 0.1)
     min_growth = st.slider("Min revenue growth (%)", -20, 50, 5)
     ideal_de = st.slider("Ideal debt/equity (ratio) Lesser Than", 0.0, 1.0, 0.5, 0.1)
     min_div = st.slider("Min dividend yield (%)", 0.0, 8.0, 0.0, 0.1)
