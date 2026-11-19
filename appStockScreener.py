@@ -19,7 +19,7 @@ with st.expander("Criteria", expanded=True):
     ideal_de = st.slider("Ideal debt/equity (ratio) Lesser Than", 0.0, 1.0, 0.5, 0.1)
     min_div = st.slider("Min dividend yield (%)", 0.0, 8.0, 0.0, 0.1)
     above_200 = st.checkbox("Price above 200-day average", value=True)
-    min_fcf = st.number_input("Minimum Free Cash Flow ($)", value=0, step=100000000)
+    min_fcf_margin = st.slider("Minimum FCF / Sales Revenue (%)", 0.0, 100.0, 5.0, 1.0)
 
 
 @st.cache_data(ttl=3600)
@@ -34,6 +34,8 @@ def load(tickers):
             rg = info.get("revenueGrowth")
             ps = info.get("priceToSalesTrailing12Months")
             fcf = info.get("freeCashflow")
+            revenue = info.get("totalRevenue")
+            fcf_margin = (fcf / revenue * 100 if fcf is not None and revenue else None),
             rows.append({
                 "Ticker": t,
                 "Price": price,
@@ -43,7 +45,7 @@ def load(tickers):
                 "D/E": de / 100 if de is not None else None,
                 "Div yield %": (div_rate / price * 100) if div_rate and price else 0.0,
                 "200d avg": info.get("twoHundredDayAverage"),
-                "Free Cash Flow": fcf,
+                "FCF Margin %": fcf_margin,
             })
         except Exception:
             rows.append({"Ticker": t})
@@ -61,7 +63,7 @@ if st.button("Run screen", type="primary"):
             "D/E": pd.notna(row.get("D/E")) and row["D/E"] <= ideal_de,
             "Div": pd.notna(row.get("Div yield %")) and row["Div yield %"] >= min_div,
             "P/S": pd.notna(row.get("P/S")) and 0 < row["P/S"] <= ideal_ps,
-            "FCF": pd.notna(row.get("Free Cash Flow")) and row["Free Cash Flow"] >= min_fcf,
+            "FCF Margin": (pd.notna(row.get("FCF Margin %")) and row["FCF Margin %"] >= min_fcf_margin),
         }
         if above_200:
             checks["Trend"] = (
