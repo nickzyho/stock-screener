@@ -28,12 +28,10 @@ with st.expander("Screening Criteria", expanded=True):
         ideal_pe = st.slider("Ideal P/E Below", 5, 40, 25)
         ideal_ps = st.slider("Ideal P/S Below", 0.0, 5.0, 2.2, 0.1)
         ideal_pb = st.slider("Ideal P/B Below", 0.0, 7.0, 3.3, 0.1)
-        ideal_peg = st.slider("Ideal PEG Below", 0.0, 3.0, 1.0, 0.1)
 
     with col2:
         min_growth = st.slider("Minimum Revenue Growth (%)", -20, 50, 5)
         ideal_de = st.slider("Maximum Debt/Equity", 0.0, 1.0, 0.5, 0.1)
-        min_div = st.slider("Minimum Dividend Yield (%)", 0.0, 8.0, 0.0, 0.1)
 
     with col3:
         min_fcf_margin = st.slider(
@@ -76,15 +74,6 @@ def load(tickers):
                 except (ValueError, TypeError):
                     pass
 
-            # PEG ratio
-            peg = info.get("trailingPegRatio")
-
-            if peg is None:
-                peg = info.get("pegRatio")
-
-            # Dividend yield
-            div_yield = info.get("dividendYield")
-
             rows.append({
 
                 "Ticker": t,
@@ -97,8 +86,6 @@ def load(tickers):
 
                 "P/B": info.get("priceToBook"),
 
-                "PEG": peg,
-
                 "Rev Growth %": (
                     rg * 100 if rg is not None else None
                 ),
@@ -107,20 +94,17 @@ def load(tickers):
                     de / 100 if de is not None else None
                 ),
 
-                "Div Yield %": (
-                    div_yield * 100
-                    if div_yield is not None
-                    else None
-                ),
-
                 "FCF Margin %": fcf_margin,
 
                 "200d avg": info.get("twoHundredDayAverage"),
 
             })
 
-        except Exception:
-            rows.append({"Ticker": t})
+        except Exception as e:
+            rows.append({
+                "Ticker": t,
+                "Error": str(e)
+            })
 
     return pd.DataFrame(rows)
 
@@ -147,10 +131,8 @@ if st.button("Run Screen", type="primary"):
             "P/E",
             "P/S",
             "P/B",
-            "PEG",
             "Rev Growth %",
             "D/E",
-            "Div Yield %",
             "FCF Margin %",
             "200d avg",
         ]
@@ -182,11 +164,6 @@ if st.button("Run Screen", type="primary"):
                     and 0 < row["P/B"] <= ideal_pb
                 ),
 
-                "PEG": (
-                    pd.notna(row.get("PEG"))
-                    and 0 < row["PEG"] <= ideal_peg
-                ),
-
                 # Financial quality
                 "Growth": (
                     pd.notna(row.get("Rev Growth %"))
@@ -197,11 +174,6 @@ if st.button("Run Screen", type="primary"):
                     pd.notna(row.get("D/E"))
                     and row["D/E"] >= 0
                     and row["D/E"] <= ideal_de
-                ),
-
-                "Div": (
-                    pd.notna(row.get("Div Yield %"))
-                    and row["Div Yield %"] >= min_div
                 ),
 
                 "FCF Margin": (
@@ -226,13 +198,13 @@ if st.button("Run Screen", type="primary"):
         # Category scores
         df["Valuation"] = results.apply(
             lambda c: sum(
-                c[k] for k in ["P/E", "P/S", "P/B", "PEG"]
+                c[k] for k in ["P/E", "P/S", "P/B"]
             )
         )
 
         df["Quality"] = results.apply(
             lambda c: sum(
-                c[k] for k in ["Growth", "D/E", "Div", "FCF Margin"]
+                c[k] for k in ["Growth", "D/E", "FCF Margin"]
             )
         )
 
@@ -263,8 +235,8 @@ if st.button("Run Screen", type="primary"):
         col1.metric("Stocks Screened", len(df))
 
         col2.metric(
-            "Stocks Passing 6+ Criteria",
-            int((df["Score"] >= 6).sum())
+            "Stocks Passing 5+ Criteria",
+            int((df["Score"] >= 5).sum())
         )
 
         col3.metric(
@@ -284,20 +256,9 @@ if st.button("Run Screen", type="primary"):
             use_container_width=True
         )
 
-        # Download results
-        csv = display_df.to_csv(index=False).encode("utf-8")
-
-        st.download_button(
-            "Download Results (CSV)",
-            data=csv,
-            file_name="stock_screener_results.csv",
-            mime="text/csv",
-        )
-
         st.caption(
             "Missing data counts as a fail. Financial data comes "
             "from Yahoo Finance and may be delayed or inaccurate. "
-            "PEG definitions may vary between data sources. "
             "This screener is for informational purposes only, "
             "not investment advice."
         )
