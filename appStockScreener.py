@@ -60,11 +60,7 @@ with st.expander("Screening Criteria", expanded=True):
         ideal_ps = st.slider(
             "Ideal P/S Below", 0.0, 5.0, 2.2, 0.1
         )
-
-        ideal_pb = st.slider(
-            "Ideal P/B Below", 0.0, 7.0, 3.3, 0.1
-        )
-
+        
     with col2:
         min_growth = st.slider(
             "Minimum Revenue Growth (%)", -20, 50, 5
@@ -122,7 +118,6 @@ def fetch_stock(t):
             "Price": price,
             "P/E": info.get("trailingPE"),
             "P/S": info.get("priceToSalesTrailing12Months"),
-            "P/B": info.get("priceToBook"),
 
             "Rev Growth %": (
                 rg * 100 if rg is not None else None
@@ -149,7 +144,6 @@ def fetch_stock(t):
             "Price": None,
             "P/E": None,
             "P/S": None,
-            "P/B": None,
             "Rev Growth %": None,
             "D/E": None,
             "FCF Margin %": None,
@@ -235,7 +229,6 @@ def calculate_scores(data):
         "Price",
         "P/E",
         "P/S",
-        "P/B",
         "Rev Growth %",
         "D/E",
         "FCF Margin %",
@@ -260,11 +253,6 @@ def calculate_scores(data):
             "P/S": (
                 pd.notna(row["P/S"])
                 and 0 < row["P/S"] <= ideal_ps
-            ),
-
-            "P/B": (
-                pd.notna(row["P/B"])
-                and 0 < row["P/B"] <= ideal_pb
             ),
 
             # Financial quality
@@ -298,7 +286,7 @@ def calculate_scores(data):
 
     df["Valuation"] = results.apply(
         lambda c: sum(
-            c[k] for k in ["P/E", "P/S", "P/B"]
+            c[k] for k in ["P/E", "P/S"]
         )
     )
 
