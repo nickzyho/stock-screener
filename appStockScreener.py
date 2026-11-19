@@ -19,7 +19,7 @@ with st.expander("Criteria", expanded=True):
     ideal_de = st.slider("Ideal debt/equity (ratio) Lesser Than", 0.0, 1.0, 0.5, 0.1)
     min_div = st.slider("Min dividend yield (%)", 0.0, 8.0, 0.0, 0.1)
     above_200 = st.checkbox("Price above 200-day average", value=True)
-    min_fcf_margin = st.slider("Minimum FCF / Sales Revenue (%)", 0.0, 100.0, 5.0, 1.0)
+    min_fcf_margin = st.slider("Minimum FCF / Sales Revenue (%)", -20.0, 100.0, 5.0, 5.0)
 
 
 @st.cache_data(ttl=3600)
@@ -35,7 +35,19 @@ def load(tickers):
             ps = info.get("priceToSalesTrailing12Months")
             fcf = info.get("freeCashflow")
             revenue = info.get("totalRevenue")
-            fcf_margin = (fcf / revenue * 100 if fcf is not None and revenue else None),
+
+            fcf_margin = None
+
+            if fcf is not None and revenue is not None:
+                try:
+                    fcf = float(fcf)
+                    revenue = float(revenue)
+
+                    if revenue > 0:
+                        fcf_margin = (fcf / revenue) * 100
+                except (ValueError, TypeError):
+                    pass
+
             rows.append({
                 "Ticker": t,
                 "Price": price,
@@ -56,6 +68,10 @@ if st.button("Run screen", type="primary"):
     with st.spinner("Fetching data..."):
         df = load(tuple(tickers))
 
+    df["FCF Margin %"] = pd.to_numeric(
+        df["FCF Margin %"], errors="coerce"
+    )
+
     def passes(row):
         checks = {
             "P/E": pd.notna(row.get("P/E")) and 0 < row["P/E"] <= ideal_pe,
@@ -63,20 +79,28 @@ if st.button("Run screen", type="primary"):
             "D/E": pd.notna(row.get("D/E")) and row["D/E"] <= ideal_de,
             "Div": pd.notna(row.get("Div yield %")) and row["Div yield %"] >= min_div,
             "P/S": pd.notna(row.get("P/S")) and 0 < row["P/S"] <= ideal_ps,
-            "FCF Margin": (pd.notna(row.get("FCF Margin %")) and row["FCF Margin %"] >= min_fcf_margin),
+            "FCF Margin": (
+                pd.notna(row.get("FCF Margin %"))
+                and row["FCF Margin %"] >= min_fcf_margin
+            ),
         }
+
         if above_200:
             checks["Trend"] = (
                 pd.notna(row.get("Price"))
                 and pd.notna(row.get("200d avg"))
                 and row["Price"] > row["200d avg"]
             )
+
         return checks
 
     results = df.apply(passes, axis=1)
     df["Score"] = results.apply(lambda c: sum(c.values()))
     df["Max"] = results.apply(len)
-    df = df.drop(columns=["200d avg"]).sort_values("Score", ascending=False)
+
+    df = df.drop(columns=["200d avg"]).sort_values(
+        "Score", ascending=False
+    )
 
     st.dataframe(df.round(2), hide_index=True, use_container_width=True)
     st.caption(
