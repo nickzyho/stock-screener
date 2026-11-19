@@ -45,7 +45,7 @@ with st.expander("Screening Criteria", expanded=True):
 
 
 # Fetch financial data
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=300)
 def load(tickers):
 
     rows = []
